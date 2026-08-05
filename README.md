@@ -162,7 +162,7 @@ Sales-Customer-Analytics-Dashboard
 
 # 👨‍💻 Author
 
-**Abhijeet Anand**
+**Manish Kashyap**
 
 📧 Email: manishkshyp0123@gmail.com
 
