@@ -119,7 +119,7 @@ Based on the dashboard analysis:
 
 > Dashboard Screenshot
 
-![Dashboard Preview](Dashboard.png)
+![Dashboard Preview](Dashboard.png.jpg)
 
 ---
 
