@@ -12,7 +12,7 @@ This project presents an interactive **Sales & Customer Analytics Dashboard** de
 
 The dashboard transforms raw retail data into meaningful business insights by analyzing sales performance, customer behavior, order trends, and key performance indicators (KPIs). It enables stakeholders to monitor business performance through an intuitive and interactive reporting interface.
 
-[![Live Preview](https://img.shields.io/badge/View_Live_Preview-Interactive_Dashboard-blue?style=for-the-badge&logo=github)](https://YourUsername.github.io/YourRepositoryName/)
+[![Live Preview](https://img.shields.io/badge/View_Live_Preview-Interactive_Dashboard-blue?style=for-the-badge&logo=github)](https://manish-kashyap.github.io/Decathlon-Retail-Sales-Customer-Analytics-Dashboard/)
 
 
 ---
