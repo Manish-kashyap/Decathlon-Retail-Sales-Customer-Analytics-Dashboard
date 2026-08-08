@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Decathlon Premium Analytics</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Outfit -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Outfit', 'sans-serif'] },
+                    colors: {
+                        darkBg: '#090E17',
+                        neonCyan: '#22d3ee',
+                        neonBlue: '#3b82f6',
+                        neonPurple: '#a855f7'
+                    },
+                    animation: { 'fade-in': 'fadeIn 0.3s ease-out forwards' },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0', transform: 'translateY(10px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { 
+            background-color: #090E17; 
+            color: #e2e8f0;
+            overflow: hidden; 
+            overscroll-behavior-y: none; 
+        }
+        
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.6);
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1rem;
+            transform: translateZ(0); 
+            will-change: transform, box-shadow;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        @media (hover: hover) {
+            .glass-panel:hover {
+                transform: translateY(-3px) translateZ(0);
+                border-color: rgba(34, 211, 238, 0.3);
+                box-shadow: 0 8px 30px rgba(34, 211, 238, 0.1);
+            }
+        }
+
+        .text-gradient-cyan {
+            background: linear-gradient(to right, #22d3ee, #3b82f6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .text-gradient-purple {
+            background: linear-gradient(to right, #a855f7, #ec4899);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .nav-item { position: relative; transition: all 0.2s ease; }
+        .nav-item::before {
+            content: ''; position: absolute; left: -1rem; top: 50%; transform: translateY(-50%);
+            height: 0; width: 3px; background: #22d3ee; border-radius: 0 4px 4px 0; transition: height 0.2s ease;
+        }
+        .nav-item.active { background: rgba(34, 211, 238, 0.1); color: #22d3ee; }
+        .nav-item.active::before { height: 60%; box-shadow: 0 0 8px #22d3ee; }
+
+        .tab-content { display: none; will-change: opacity, transform; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease forwards; }
+
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        
+        .chart-container { position: relative; width: 100%; height: 100%; }
+    </style>
+</head>
+<body class="font-sans flex h-[100dvh] w-screen selection:bg-neonCyan selection:text-darkBg">
+
+    <div class="fixed top-[-15%] left-[-10%] w-[50%] h-[50%] bg-blue-600/10 rounded-full blur-[80px] pointer-events-none z-0 transform translate-z-0"></div>
+    <div class="fixed bottom-[-15%] right-[-10%] w-[50%] h-[50%] bg-purple-600/10 rounded-full blur-[80px] pointer-events-none z-0 transform translate-z-0"></div>
+
+    <div id="sidebar-overlay" class="fixed inset-0 bg-darkBg/60 backdrop-blur-sm z-40 hidden opacity-0 lg:hidden transition-opacity duration-200" onclick="toggleMobileMenu()"></div>
+
+    <aside id="mobile-sidebar" class="fixed inset-y-0 left-0 w-64 bg-darkBg/95 border-r border-white/10 z-50 transform -translate-x-full lg:translate-x-0 lg:relative flex flex-col transition-transform duration-300 ease-out will-change-transform">
+        <div class="p-5 flex items-center justify-between lg:justify-start space-x-3 border-b border-white/5">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-br from-cyan-400 to-blue-600 p-2 rounded-lg shadow-[0_0_10px_rgba(34,211,238,0.3)]">
+                    <i class="fa-solid fa-layer-group text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold text-white tracking-wide leading-tight">DECATHLON</h1>
+                    <p class="text-[9px] uppercase tracking-[0.15em] text-cyan-400 font-semibold">Analytics</p>
+                </div>
+            </div>
+            <button class="lg:hidden text-slate-400 hover:text-white" onclick="toggleMobileMenu()"><i class="fa-solid fa-xmark text-xl"></i></button>
+        </div>
+        
+        <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto no-scrollbar">
+            <p class="px-4 text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2">Dashboards</p>
+            <a href="#" onclick="switchTab('overview')" id="nav-overview" class="nav-item active flex items-center space-x-3 px-4 py-3 rounded-lg text-sm text-slate-300 font-medium">
+                <i class="fa-solid fa-border-all w-5"></i> <span>Overview</span>
+            </a>
+            <a href="#" onclick="switchTab('sales')" id="nav-sales" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg text-sm text-slate-300 font-medium">
+                <i class="fa-solid fa-chart-line w-5"></i> <span>Sales Insights</span>
+            </a>
+            <a href="#" onclick="switchTab('customers')" id="nav-customers" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg text-sm text-slate-300 font-medium">
+                <i class="fa-solid fa-user-astronaut w-5"></i> <span>Customer Data</span>
+            </a>
+            <a href="#" onclick="switchTab('insights')" id="nav-insights" class="nav-item flex items-center space-x-3 px-4 py-3 rounded-lg text-sm text-slate-300 font-medium mt-4">
+                <i class="fa-solid fa-lightbulb w-5 text-yellow-400"></i> <span>Insights & Recs</span>
+            </a>
+        </nav>
+
+        <div class="p-4 border-t border-white/5">
+            <div class="flex items-center space-x-3 p-2 rounded-lg hover:bg-white/5 transition">
+                <img src="https://ui-avatars.com/api/?name=Admin+User&background=22d3ee&color=090E17" alt="User" class="w-8 h-8 rounded-full border border-cyan-400/50">
+                <div>
+                    <p class="text-sm font-semibold text-white leading-tight">Admin User</p>
+                    <p class="text-[9px] text-slate-400 uppercase tracking-wide">Store Manager</p>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-[100dvh] overflow-y-auto no-scrollbar relative z-10 scroll-smooth">
+        
+        <header class="sticky top-0 z-30 px-4 md:px-6 py-3 flex justify-between items-center w-full bg-darkBg/80 backdrop-blur-md border-b border-white/10">
+            <div class="flex items-center space-x-3">
+                <button class="lg:hidden text-slate-300 hover:text-neonCyan text-xl transition-colors" onclick="toggleMobileMenu()">
+                    <i class="fa-solid fa-bars-staggered"></i>
+                </button>
+                <h2 class="text-lg md:text-xl font-bold text-white tracking-tight truncate" id="page-title">Executive Overview</h2>
+            </div>
+            
+            <div class="flex items-center space-x-2 md:space-x-4">
+                <div class="flex bg-white/5 rounded-lg p-1 border border-white/10 overflow-x-auto no-scrollbar max-w-[180px] md:max-w-none">
+                    <button class="px-2 md:px-3 py-1 text-[10px] md:text-xs font-semibold rounded bg-cyan-500/20 text-cyan-400 whitespace-nowrap">All Years</button>
+                    <button class="px-2 md:px-3 py-1 text-[10px] md:text-xs font-semibold rounded text-slate-400 hover:text-white transition">2024</button>
+                    <button class="px-2 md:px-3 py-1 text-[10px] md:text-xs font-semibold rounded text-slate-400 hover:text-white transition">2025</button>
+                    <button class="px-2 md:px-3 py-1 text-[10px] md:text-xs font-semibold rounded text-slate-400 hover:text-white transition">2026</button>
+                </div>
+                <button class="bg-gradient-to-r from-cyan-500 to-blue-600 text-white p-1.5 px-3 md:px-4 py-1.5 rounded-lg text-xs font-semibold shadow-[0_0_10px_rgba(34,211,238,0.2)] flex items-center">
+                    <i class="fa-solid fa-download md:mr-2"></i> <span class="hidden md:inline">Export</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="p-3 md:p-6 space-y-3 md:space-y-6 max-w-[1600px] mx-auto w-full">
+            
+            <!-- KPI Row -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-5">
+                <div class="glass-panel p-3 md:p-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-[9px] md:text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Total Revenue (All Yrs)</p>
+                            <h3 class="text-base sm:text-lg md:text-2xl font-bold text-gradient-cyan truncate">₹ 86.2 Cr</h3>
+                        </div>
+                        <div class="bg-white/5 text-cyan-400 w-7 h-7 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-xs md:text-sm shadow-[0_0_10px_rgba(34,211,238,0.1)]">
+                            <i class="fa-solid fa-indian-rupee-sign"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-3 md:p-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-[9px] md:text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Total Orders</p>
+                            <h3 class="text-base sm:text-lg md:text-2xl font-bold text-white truncate">30,000</h3>
+                        </div>
+                        <div class="bg-white/5 text-blue-400 w-7 h-7 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-xs md:text-sm shadow-[0_0_10px_rgba(59,130,246,0.1)]">
+                            <i class="fa-solid fa-box-open"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-3 md:p-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-[9px] md:text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Customers</p>
+                            <h3 class="text-base sm:text-lg md:text-2xl font-bold text-white truncate">8,998</h3>
+                        </div>
+                        <div class="bg-white/5 text-purple-400 w-7 h-7 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-xs md:text-sm shadow-[0_0_10px_rgba(168,85,247,0.1)]">
+                            <i class="fa-solid fa-users-rays"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-3 md:p-4">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-[9px] md:text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-0.5">Avg Order Value</p>
+                            <h3 class="text-base sm:text-lg md:text-2xl font-bold text-gradient-purple truncate">₹ 40,808</h3>
+                        </div>
+                        <div class="bg-white/5 text-pink-400 w-7 h-7 md:w-9 md:h-9 rounded-lg flex items-center justify-center text-xs md:text-sm shadow-[0_0_10px_rgba(236,72,153,0.1)]">
+                            <i class="fa-solid fa-receipt"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB: OVERVIEW ================= -->
+            <div id="tab-overview" class="tab-content active">
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 md:gap-5">
+                    
+                    <div class="glass-panel p-4 md:p-5 lg:col-span-2 flex flex-col w-full h-full">
+                        <div class="flex justify-between items-center mb-3 md:mb-4">
+                            <h3 class="text-sm md:text-base font-bold text-white tracking-wide">Multi-Year Revenue Trajectory</h3>
+                            <span class="flex h-2 w-2 relative">
+                              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                              <span class="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                            </span>
+                        </div>
+                        <div class="chart-container h-[200px] sm:h-[250px] lg:h-[300px]">
+                            <canvas id="chartSalesOverview"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-panel p-4 md:p-5 flex flex-col h-full">
+                        <h3 class="text-sm md:text-base font-bold text-white tracking-wide mb-3 md:mb-4">Top Categories</h3>
+                        <div class="space-y-2 md:space-y-3 flex-1">
+                            <div class="flex items-center justify-between p-2.5 bg-white/5 rounded-lg border border-white/5">
+                                <div class="flex items-center space-x-3">
+                                    <div class="text-cyan-400 w-8 h-8 rounded-full flex items-center justify-center bg-cyan-400/10"><i class="fa-solid fa-person-biking text-sm"></i></div>
+                                    <div>
+                                        <p class="text-xs md:text-sm font-bold text-white leading-tight">Cycling</p>
+                                        <p class="text-[9px] md:text-[10px] text-slate-400">3,139 Orders</p>
+                                    </div>
+                                </div>
+                                <p class="text-xs md:text-sm font-bold text-cyan-400">₹8.1 Cr</p>
+                            </div>
+                            <div class="flex items-center justify-between p-2.5 bg-white/5 rounded-lg border border-white/5">
+                                <div class="flex items-center space-x-3">
+                                    <div class="text-blue-400 w-8 h-8 rounded-full flex items-center justify-center bg-blue-400/10"><i class="fa-solid fa-tent text-sm"></i></div>
+                                    <div>
+                                        <p class="text-xs md:text-sm font-bold text-white leading-tight">Outdoor</p>
+                                        <p class="text-[9px] md:text-[10px] text-slate-400">3,020 Orders</p>
+                                    </div>
+                                </div>
+                                <p class="text-xs md:text-sm font-bold text-blue-400">₹4.1 Cr</p>
+                            </div>
+                            <div class="flex items-center justify-between p-2.5 bg-white/5 rounded-lg border border-white/5">
+                                <div class="flex items-center space-x-3">
+                                    <div class="text-purple-400 w-8 h-8 rounded-full flex items-center justify-center bg-purple-400/10"><i class="fa-solid fa-person-running text-sm"></i></div>
+                                    <div>
+                                        <p class="text-xs md:text-sm font-bold text-white leading-tight">Running</p>
+                                        <p class="text-[9px] md:text-[10px] text-slate-400">3,151 Orders</p>
+                                    </div>
+                                </div>
+                                <p class="text-xs md:text-sm font-bold text-purple-400">₹3.5 Cr</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB: SALES ================= -->
+            <div id="tab-sales" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5">
+                    <div class="glass-panel p-4 md:p-5 flex flex-col items-center">
+                        <h3 class="text-sm md:text-base font-bold text-white tracking-wide w-full text-left mb-3">Overall Revenue Dist.</h3>
+                        <div class="chart-container h-[220px] sm:h-[280px] flex items-center justify-center">
+                            <canvas id="chartCategory"></canvas>
+                            <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                                <span class="text-xl md:text-2xl font-bold text-white">100%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 md:p-5 overflow-hidden flex flex-col">
+                        <h3 class="text-sm md:text-base font-bold text-white tracking-wide mb-3">Category Matrix</h3>
+                        <div class="overflow-x-auto flex-1 w-full no-scrollbar">
+                            <table class="w-full text-left text-[11px] md:text-xs whitespace-nowrap">
+                                <thead class="border-b border-white/10 text-slate-400 uppercase tracking-wider">
+                                    <tr>
+                                        <th class="px-2 md:px-4 py-2 font-semibold">Category</th>
+                                        <th class="px-2 md:px-4 py-2 font-semibold">Sales (Cr)</th>
+                                        <th class="px-2 md:px-4 py-2 font-semibold">Orders</th>
+                                        <th class="px-2 md:px-4 py-2 font-semibold text-center">Trend</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-white/5 text-slate-200">
+                                    <tr>
+                                        <td class="px-2 md:px-4 py-3 font-medium"><span class="w-2 h-2 inline-block rounded-full bg-cyan-400 mr-2"></span> Cycling</td>
+                                        <td class="px-2 md:px-4 py-3 font-bold text-white">₹8.10</td>
+                                        <td class="px-2 md:px-4 py-3">3,139</td>
+                                        <td class="px-2 md:px-4 py-3 text-green-400 text-center"><i class="fa-solid fa-arrow-up"></i></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-2 md:px-4 py-3 font-medium"><span class="w-2 h-2 inline-block rounded-full bg-blue-500 mr-2"></span> Outdoor</td>
+                                        <td class="px-2 md:px-4 py-3 font-bold text-white">₹4.10</td>
+                                        <td class="px-2 md:px-4 py-3">3,020</td>
+                                        <td class="px-2 md:px-4 py-3 text-green-400 text-center"><i class="fa-solid fa-arrow-up"></i></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-2 md:px-4 py-3 font-medium"><span class="w-2 h-2 inline-block rounded-full bg-purple-500 mr-2"></span> Running</td>
+                                        <td class="px-2 md:px-4 py-3 font-bold text-white">₹3.50</td>
+                                        <td class="px-2 md:px-4 py-3">3,151</td>
+                                        <td class="px-2 md:px-4 py-3 text-slate-500 text-center"><i class="fa-solid fa-minus"></i></td>
+                                    </tr>
+                                    <tr>
+                                        <td class="px-2 md:px-4 py-3 font-medium"><span class="w-2 h-2 inline-block rounded-full bg-emerald-400 mr-2"></span> Hiking</td>
+                                        <td class="px-2 md:px-4 py-3 font-bold text-white">₹3.30</td>
+                                        <td class="px-2 md:px-4 py-3">2,848</td>
+                                        <td class="px-2 md:px-4 py-3 text-green-400 text-center"><i class="fa-solid fa-arrow-up"></i></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB: CUSTOMERS ================= -->
+            <div id="tab-customers" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5">
+                    <div class="glass-panel p-4 md:p-5 flex flex-col">
+                        <div class="flex justify-between items-center mb-3">
+                            <h3 class="text-sm md:text-base font-bold text-white tracking-wide">Multi-Year Retention Rate</h3>
+                            <span class="text-sm md:text-base font-bold text-cyan-400">64.58%</span>
+                        </div>
+                        <div class="chart-container h-[200px] sm:h-[250px]">
+                            <canvas id="chartRetention"></canvas>
+                        </div>
+                    </div>
+
+                    <div class="glass-panel p-4 md:p-5 flex flex-col justify-center">
+                        <h3 class="text-sm md:text-base font-bold text-white tracking-wide mb-6">Demographics</h3>
+                        <div class="flex items-center justify-around mb-6">
+                            <div class="text-center">
+                                <div class="bg-pink-500/10 w-12 h-12 md:w-16 md:h-16 rounded-xl flex items-center justify-center text-pink-400 mx-auto mb-2 border border-pink-500/20">
+                                    <i class="fa-solid fa-venus text-xl md:text-2xl"></i>
+                                </div>
+                                <p class="text-[9px] md:text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">Female</p>
+                                <p class="text-lg md:text-xl font-bold text-white">49.8%</p>
+                            </div>
+                            
+                            <div class="h-16 w-px bg-white/10"></div>
+                            
+                            <div class="text-center">
+                                <div class="bg-blue-500/10 w-12 h-12 md:w-16 md:h-16 rounded-xl flex items-center justify-center text-blue-400 mx-auto mb-2 border border-blue-500/20">
+                                    <i class="fa-solid fa-mars text-xl md:text-2xl"></i>
+                                </div>
+                                <p class="text-[9px] md:text-xs text-slate-400 font-bold uppercase tracking-widest mb-1">Male</p>
+                                <p class="text-lg md:text-xl font-bold text-white">50.2%</p>
+                            </div>
+                        </div>
+                        
+                        <div class="w-full bg-darkBg rounded-full h-2 flex overflow-hidden border border-white/5">
+                            <div class="bg-gradient-to-r from-pink-600 to-pink-400 h-full" style="width: 49.8%"></div>
+                            <div class="bg-gradient-to-r from-blue-400 to-blue-600 h-full" style="width: 50.2%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ================= TAB: INSIGHTS & RECS ================= -->
+            <div id="tab-insights" class="tab-content">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-3 md:gap-5">
+                    
+                    <!-- Insights Card -->
+                    <div class="glass-panel p-5 md:p-6 flex flex-col h-full border-t-4 border-t-cyan-400">
+                        <div class="flex items-center mb-5">
+                            <div class="bg-cyan-500/20 text-cyan-400 w-10 h-10 rounded-lg flex items-center justify-center mr-3 shadow-[0_0_15px_rgba(34,211,238,0.2)]">
+                                <i class="fa-solid fa-magnifying-glass-chart text-lg"></i>
+                            </div>
+                            <h3 class="text-lg md:text-xl font-bold text-white tracking-wide">Key Data Insights</h3>
+                        </div>
+                        <ul class="space-y-4 text-slate-300 text-sm md:text-base flex-1">
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-circle-check text-cyan-400 mt-1 mr-3"></i> 
+                                <span>Sales trends help identify seasonal business patterns across the year.[span_1](start_span)[span_1](end_span)</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-circle-check text-cyan-400 mt-1 mr-3"></i> 
+                                <span>Customer segmentation reveals high-value customer groups contributing most to the ₹40,808 AOV.[span_2](start_span)[span_2](end_span)</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-circle-check text-cyan-400 mt-1 mr-3"></i> 
+                                <span>Product category analysis highlights major revenue contributors (e.g., Cycling at 25%).[span_3](start_span)[span_3](end_span)</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-circle-check text-cyan-400 mt-1 mr-3"></i> 
+                                <span>Customer retention metrics help evaluate repeat purchasing behavior, currently averaging 64.58%.[span_4](start_span)[span_4](end_span)</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Recommendations Card -->
+                    <div class="glass-panel p-5 md:p-6 flex flex-col h-full border-t-4 border-t-purple-500">
+                        <div class="flex items-center mb-5">
+                            <div class="bg-purple-500/20 text-purple-400 w-10 h-10 rounded-lg flex items-center justify-center mr-3 shadow-[0_0_15px_rgba(168,85,247,0.2)]">
+                                <i class="fa-solid fa-bullseye text-lg"></i>
+                            </div>
+                            <h3 class="text-lg md:text-xl font-bold text-white tracking-wide">Strategic Recommendations</h3>
+                        </div>
+                        <ul class="space-y-4 text-slate-300 text-sm md:text-base flex-1">
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-arrow-right text-purple-400 mt-1 mr-3"></i> 
+                                <span>Focus marketing campaigns directly on high-value customer segments identified in demographics.[span_5](start_span)[span_5](end_span)</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-arrow-right text-purple-400 mt-1 mr-3"></i> 
+                                <span>Increase inventory for top-performing product categories like Cycling and Outdoor ahead of peak seasons.[span_6](start_span)[span_6](end_span)</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-arrow-right text-purple-400 mt-1 mr-3"></i> 
+                                <span>Design dedicated retention programs for repeat customers to maintain or boost the 64.58% retention rate.[span_7](start_span)[span_7](end_span)</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-arrow-right text-purple-400 mt-1 mr-3"></i> 
+                                <span>Optimize promotions based on seasonal sales trends across the multi-year trajectory.[span_8](start_span)[span_8](end_span)</span>
+                            </li>
+                            <li class="flex items-start">
+                                <i class="fa-solid fa-arrow-right text-purple-400 mt-1 mr-3"></i> 
+                                <span>Monitor KPI performance regularly to improve business decisions.[span_9](start_span)[span_9](end_span)</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+            </div>
+
+            <footer class="pt-2 pb-6 text-center text-[9px] md:text-[10px] text-slate-500 tracking-widest uppercase mt-4">
+                &copy; 2026 Decathlon Analytics | GitHub Preview
+            </footer>
+        </div>
+    </main>
+
+    <script>
+        const sidebar = document.getElementById('mobile-sidebar');
+        const overlay = document.getElementById('sidebar-overlay');
+        
+        function toggleMobileMenu() {
+            if (window.innerWidth >= 1024) return;
+            const isClosed = sidebar.classList.contains('-translate-x-full');
+            if (isClosed) {
+                sidebar.classList.remove('-translate-x-full');
+                overlay.classList.remove('hidden');
+                requestAnimationFrame(() => overlay.classList.remove('opacity-0'));
+            } else {
+                sidebar.classList.add('-translate-x-full');
+                overlay.classList.add('opacity-0');
+                setTimeout(() => overlay.classList.add('hidden'), 200);
+            }
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+            document.getElementById('nav-' + tabId).classList.add('active');
+            
+            const titles = { 
+                'overview': 'Executive Overview', 
+                'sales': 'Sales Insights', 
+                'customers': 'Customer Data',
+                'insights': 'Insights & Action Plan'
+            };
+            document.getElementById('page-title').innerText = titles[tabId];
+
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + tabId).classList.add('active');
+            
+            if (window.innerWidth < 1024 && !sidebar.classList.contains('-translate-x-full')) {
+                toggleMobileMenu();
+            }
+        }
+
+        Chart.defaults.font.family = "'Outfit', sans-serif";
+        Chart.defaults.color = '#94a3b8';
+        Chart.defaults.maintainAspectRatio = false;
+        Chart.defaults.responsive = true;
+        Chart.defaults.animation.duration = 750;
+
+        Chart.defaults.plugins.tooltip.backgroundColor = 'rgba(15, 23, 42, 0.9)';
+        Chart.defaults.plugins.tooltip.titleFont = { size: 12, family: 'Outfit', weight: 'bold' };
+        Chart.defaults.plugins.tooltip.bodyFont = { size: 11, family: 'Outfit' };
+        Chart.defaults.plugins.tooltip.padding = 10;
+        Chart.defaults.plugins.tooltip.cornerRadius = 8;
+        Chart.defaults.plugins.tooltip.displayColors = false;
+
+        const isMobile = window.innerWidth < 768;
+        const fontSz = isMobile ? 9 : 11;
+
+        // Expanded Multi-Year timeline for "All Years" data visualization
+        const allYearsLabels = ['24 Q1', '24 Q2', '24 Q3', '24 Q4', '25 Q1', '25 Q2', '25 Q3', '25 Q4', '26 Q1', '26 Q2', '26 Q3', '26 Q4'];
+
+        // Area Chart (All Years)
+        const ctxSales = document.getElementById('chartSalesOverview').getContext('2d');
+        let gradCyan = ctxSales.createLinearGradient(0, 0, 0, 300);
+        gradCyan.addColorStop(0, 'rgba(34, 211, 238, 0.4)');
+        gradCyan.addColorStop(1, 'rgba(34, 211, 238, 0.0)');
+
+        new Chart(ctxSales, {
+            type: 'line',
+            data: {
+                labels: allYearsLabels,
+                datasets: [{
+                    data: [2.0, 2.8, 3.2, 2.4, 2.5, 3.5, 2.9, 2.6, 2.2, 3.2, 2.8, 2.7],
+                    borderColor: '#22d3ee', backgroundColor: gradCyan, fill: true, tension: 0.4, 
+                    borderWidth: isMobile ? 2 : 3, pointRadius: isMobile ? 0 : 3
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                interaction: { intersect: false, mode: 'index' },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: fontSz } } },
+                    y: { grid: { color: 'rgba(255, 255, 255, 0.05)', drawBorder: false }, ticks: { callback: v => isMobile ? v : '₹' + v + ' Cr', font: { size: fontSz } } }
+                }
+            }
+        });
+
+        // Doughnut Chart
+        const ctxCat = document.getElementById('chartCategory').getContext('2d');
+        new Chart(ctxCat, {
+            type: 'doughnut',
+            data: {
+                labels: ['Cycling', 'Camping', 'Fitness', 'Football', 'Badminton', 'Cricket'],
+                datasets: [{
+                    data: [25, 20, 15, 15, 15, 10],
+                    backgroundColor: ['#22d3ee', '#3b82f6', '#a855f7', '#ec4899', '#f59e0b', '#10b981'],
+                    borderWidth: 1, borderColor: '#090E17'
+                }]
+            },
+            options: {
+                cutout: isMobile ? '65%' : '75%',
+                layout: { padding: isMobile ? 10 : 20 },
+                plugins: {
+                    legend: { 
+                        position: isMobile ? 'bottom' : 'right', 
+                        labels: { usePointStyle: true, boxWidth: 6, font: { size: fontSz } } 
+                    }
+                }
+            }
+        });
+
+        // Retention Chart (All Years)
+        const ctxRet = document.getElementById('chartRetention').getContext('2d');
+        let gradPurple = ctxRet.createLinearGradient(0, 0, 0, 200);
+        gradPurple.addColorStop(0, 'rgba(168, 85, 247, 0.3)');
+        gradPurple.addColorStop(1, 'rgba(168, 85, 247, 0)');
+
+        new Chart(ctxRet, {
+            type: 'line',
+            data: {
+                labels: allYearsLabels,
+                datasets: [{
+                    data: [18, 18, 16, 16, 17.5, 16.5, 15.5, 15, 17, 16, 16.5, 17],
+                    borderColor: '#a855f7', backgroundColor: gradPurple, fill: true, tension: 0.4, 
+                    borderWidth: 2, pointRadius: 0
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { grid: { display: false }, ticks: { font: { size: fontSz } } },
+                    y: { 
+                        min: 10, max: 20, 
+                        grid: { color: 'rgba(255,255,255,0.05)', borderDash: [4, 4] }, 
+                        ticks: { callback: v => v + '%', font: { size: fontSz } } 
+                    }
+                }
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (window.innerWidth >= 1024 && !sidebar.classList.contains('-translate-x-full')) {
+                overlay.classList.add('hidden', 'opacity-0');
+                sidebar.classList.remove('-translate-x-full');
+            }
+        });
+    </script>
+</body>
+</html>
